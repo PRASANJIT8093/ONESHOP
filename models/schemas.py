@@ -3,7 +3,6 @@ from typing import Optional, List
 
 
 class UserSignup(BaseModel):
-    user_id: int
     name: str
     email: str
     password: str
