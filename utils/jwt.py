@@ -51,7 +51,7 @@ def get_current_user(token: str = Depends(oauth2_scheme),db:Session=Depends(data
     credential_exception=HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail=f"could not validate credentials",headers={"WWW-Authenticate": "Bearer"})
 
     token = verify_access_token(token,credential_exception)
-    user=db.query(alchemy_models.User).filter(alchemy_models.User.id == token.id).first()
+    user=db.query(alchemy_models.User).filter(alchemy_models.User.user_id == token.id).first()
 
 
 
