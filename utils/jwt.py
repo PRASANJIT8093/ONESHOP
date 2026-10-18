@@ -5,7 +5,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
-
+from utils import token_blocklist
 from settings import database
 from models import alchemy_models, schemas
 
@@ -49,6 +49,10 @@ def verify_access_token(token:str ,credentials_exception):
 
 def get_current_user(token: str = Depends(oauth2_scheme),db:Session=Depends(database.get_db)):
     credential_exception=HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail=f"could not validate credentials",headers={"WWW-Authenticate": "Bearer"})
+
+
+    if token_blocklist.is_token_blocklisted(token):
+        raise credential_exception
 
     token = verify_access_token(token,credential_exception)
     user=db.query(alchemy_models.User).filter(alchemy_models.User.user_id == token.id).first()
