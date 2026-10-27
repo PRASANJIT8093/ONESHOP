@@ -25,14 +25,14 @@ def CREATE_ORDER(req: schemas.Order, db: Session, user_id:int):
         db.rollback()
         raise
 
-def CANCEL_ORDER(order_id: int, db: Session, curr_user):
+def CANCEL_ORDER(order_id: int, db: Session, user_id:int):
     order_tobe_deleted = db.query(alchemy_models.Order).filter(
         alchemy_models.Order.order_id == order_id,
-        alchemy_models.Order.user_id == curr_user.user_id
+        alchemy_models.Order.user_id == user_id
     ).first()
 
     if order_tobe_deleted is None:
-        raise ErrorHandler.NotFound("Order not found")
+        ErrorHandler.NotFound("Order not found")
 
     db.delete(order_tobe_deleted)
     db.commit()
@@ -40,30 +40,30 @@ def CANCEL_ORDER(order_id: int, db: Session, curr_user):
     return {"message": "Order deleted successfully"}
 
 
-def GET_USER_ORDERS(user_id: int, db: Session, curr_user):
-    if curr_user.user_id != user_id:
-        raise ErrorHandler.Forbidden(
-            "You are not authorized to view this order"
-        )
-
-    return db.query(alchemy_models.Order).filter(
+def GET_USER_ORDERS(user_id: int, db: Session):
+    orders = db.query(alchemy_models.Order).filter(
         alchemy_models.Order.user_id == user_id
     ).all()
 
+    if not orders:
+        ErrorHandler.NotFound("No orders found")
 
-def GET_ORDERS_BY_ID(order_id: int, db: Session, curr_user):
+    return orders
+
+
+def GET_ORDERS_BY_ID(order_id: int, db: Session,user_id:int):
     order = (
         db.query(alchemy_models.Order)
         .options(joinedload(alchemy_models.Order.products))
         .filter(
             alchemy_models.Order.order_id == order_id,
-            alchemy_models.Order.user_id == curr_user.user_id
+            alchemy_models.Order.user_id == user_id
         )
         .first()
     )
 
     if order is None:
-        raise ErrorHandler.NotFound("Order not found")
+         ErrorHandler.NotFound("Order not found")
 
     order_dict = {
         c.name: getattr(order, c.name)
@@ -79,14 +79,14 @@ def GET_ORDERS_BY_ID(order_id: int, db: Session, curr_user):
     ]
 
     return [order_dict]
-def GET_ORDER_STATUS(order_id: int, db: Session, curr_user):
+def GET_ORDER_STATUS(order_id: int, db: Session , user_id:int):
     order = db.query(alchemy_models.Order).filter(
         alchemy_models.Order.order_id == order_id,
-        alchemy_models.Order.user_id == curr_user.user_id
+        alchemy_models.Order.user_id == user_id
     ).first()
 
     if order is None:
-        raise ErrorHandler.NotFound("Order not found")
+        ErrorHandler.NotFound("Order not found")
 
     return {
         "order_id": order.order_id,
