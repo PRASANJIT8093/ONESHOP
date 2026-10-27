@@ -4,10 +4,10 @@ from utils.exceptions import ErrorHandler
 
 
 
-def CREATE_ORDER(req: schemas.Order, db: Session, curr_user):
+def CREATE_ORDER(req: schemas.Order, db: Session, user_id:int):
     try:
         order_data = req.model_dump(exclude={"product"})
-        order_data["user_id"] = curr_user.user_id
+        order_data["user_id"] = user_id
 
         new_order = alchemy_models.Order(**order_data)
 
