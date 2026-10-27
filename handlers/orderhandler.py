@@ -22,15 +22,19 @@ def CREATE_ORDER(req: schemas.Order, db: Session = Depends(database.get_db)):
     return [req]
 
 
-def CANCEL_ORDER(order_id:int , db: Session = Depends(database.get_db) , curr_user=Depends(verified_user)):
-    order_tobe_deleted=db.query(alchemy_models.Order).filter(alchemy_models.Order.order_id == order_id , alchemy_models.Order.user_id == curr_user.user_id).first()
+def CANCEL_ORDER(order_id: int, db: Session, curr_user):
+    order_tobe_deleted = db.query(alchemy_models.Order).filter(
+        alchemy_models.Order.order_id == order_id,
+        alchemy_models.Order.user_id == curr_user.user_id
+    ).first()
+
     if order_tobe_deleted is None:
-     raise ErrorHandler.NotFound("Order not found")
+        raise ErrorHandler.NotFound("Order not found")
 
     db.delete(order_tobe_deleted)
     db.commit()
-    return {"message": "Order deleted successfully"}
 
+    return {"message": "Order deleted successfully"}
 
 
 def GET_USER_ORDERS(user_id:int ,db: Session = Depends(database.get_db) , curr_user=Depends(verified_user) ):
