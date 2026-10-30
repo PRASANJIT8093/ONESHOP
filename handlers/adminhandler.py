@@ -1,10 +1,7 @@
-from fastapi import HTTPException, Depends ,status
-from settings import database
-from models import alchemy_models
-from sqlalchemy.orm import Session
+from fastapi import HTTPException,status
+from models import alchemy_models 
+from sqlalchemy.orm import Session , joinedload
 from utils.exceptions import ErrorHandler
-from utils.jwt import get_current_user
-from sqlalchemy.orm import joinedload
 
 
 
@@ -13,8 +10,8 @@ from sqlalchemy.orm import joinedload
 
 def UPDATE_ADMIN(
     user_id: int,
-    db: Session = Depends(database.get_db),
-    user_data: alchemy_models.User = Depends(get_current_user)
+    db: Session,
+    user_data: alchemy_models.User
  ):
 
 
@@ -44,7 +41,7 @@ def UPDATE_ADMIN(
         ErrorHandler.ServerError("An unexpected error occurred")
 
 
-def GET_ALL_ORDERS(db: Session = Depends(database.get_db)):
+def GET_ALL_ORDERS(db: Session):
     orders = db.query(alchemy_models.Order).options(
         joinedload(alchemy_models.Order.products)).all()
     if not orders:
@@ -67,7 +64,7 @@ def GET_ALL_ORDERS(db: Session = Depends(database.get_db)):
 def UPDATE_ORDER_STATUS(
     order_id: int,
     given_status: str,
-    db: Session = Depends(database.get_db)
+    db: Session 
 ):
     valid_statuses = ["pending", "delivered", "cancelled"]
 
@@ -103,7 +100,7 @@ def UPDATE_ORDER_STATUS(
 
 def GET_ORDERS_BY_STATUS(
     status_str: str, 
-    db: Session = Depends(database.get_db)
+    db: Session 
 ) -> list[alchemy_models.Order]:    
     valid_statuses = ["pending", "delivered", "cancelled"]
     if status_str not in valid_statuses:

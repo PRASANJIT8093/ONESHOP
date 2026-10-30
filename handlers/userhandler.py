@@ -9,44 +9,65 @@ from utils.exceptions import ErrorHandler
 
 
 
-def IS_USER(user_id: int, db:Session = Depends(database.get_db)):
+def IS_USER(user_id: int, db: Session):
+    user = (
+        db.query(alchemy_models.User)
+        .filter(alchemy_models.User.user_id == user_id)
+        .first()
+    )
+
+    if user is None:
+        ErrorHandler.NotFound("User not found")
+
+    return user
+def CREATE_USER(
+    user_credential: schemas.UserSignup,
+    db: Session,
+):
+    existing_user = (
+        db.query(alchemy_models.User)
+        .filter(
+            alchemy_models.User.email == user_credential.email
+        )
+        .first()
+    )
+
+    if existing_user:
+        ErrorHandler.Conflict("Email already exists")
+
+    hashing_password = hash.hashed_password(
+        user_credential.password
+    )
+
+    new_user = alchemy_models.User(
+        **user_credential.model_dump(exclude={"password"}),
+        password=hashing_password,
+    )
+
     try:
-        user= db.query(alchemy_models.User).filter(alchemy_models.User.user_id == user_id).first
-        if user:
-            return user
-    except Exception as e :
-        raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE, detail=str(e))
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+    except Exception:
+        db.rollback()
+        raise
 
-
-def CREATE_USER (user_credential=schemas.UserSignup, db:Session = Depends(database.get_db)):
-    #check if the user email already exits in database
-    if db.query(alchemy_models.User).filter(alchemy_models.User.email == user_credential.email).first():
-        ErrorHandler.Conflict("Email Already Exists")
-    hashed_password = hashed_password(user_credential.password)
-    #create new user
-    new_user = alchemy_models.User(**user_credential.model_dump(exclude={"password"}), password=hashed_password)
-
-    #add the new user to the database
-    db.add(new_user)
-    db.commit()
-    return {"messege": "User created successfully"}
-
-
-def GET_ALL_USERS(email:str , db:Session = Depends(database.get_db),user_id:int =Depends(get_current_user) ):
+    return {"message": "User created successfully"}
+def GET_ALL_USERS( db:Session ):
      user = db.query(alchemy_models.User).all()
      if not user:
         ErrorHandler.NotFound("No user found")
      return user
 
 
-def GET_USER(email:str,db:Session=Depends(database.get_db),user_id:int =Depends(get_current_user)):
+def GET_USER(email:str,db:Session=Depends(database.get_db)):
     user = db.query(alchemy_models.User).filter(
         alchemy_models.User.email == email).first()
     if not user:
         ErrorHandler.NotFound("User not found")
     return user
 
-def GET_USER_BY_ID(user_id:int, db:Session=Depends(database.get_db),current_user_id:int =Depends(get_current_user)):
+def GET_USER_BY_ID(user_id:int, db:Session):
     user = db.query(alchemy_models.User).filter(
         alchemy_models.User.user_id == user_id).first()
     if not user:

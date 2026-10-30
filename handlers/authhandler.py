@@ -30,22 +30,39 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 
 
-def verify_admin( current_user: alchemy_models.User = Depends(get_current_user)):
-    if not current_user or not current_user.is_admin:
-        ErrorHandler.Forbidden("User logged in is not an admin")
-    return True
+def verify_admin(current_user: alchemy_models.User):
+    if not current_user:
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required"
+        )
 
-
-def verified_user(current_user: alchemy_models.User = Depends(get_current_user)):
-    if not current_user :
-        ErrorHandler.NotFound("user not found")
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=403,
+            detail="Admin privileges required"
+        )
 
     return current_user
 
 
-def validate_email(email: str, session: Session):
+def verified_user(current_user: alchemy_models.User):
+    if not current_user:
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required"
+        )
+
+    if not current_user.is_verified:
+        raise HTTPException(
+            status_code=403,
+            detail="User is not verified"
+        )
+
+    return current_user
+def validate_email(email: str, db: Session):
     try:
-        user = session.query(alchemy_models.User).filter(
+        user = db.query(alchemy_models.User).filter(
             alchemy_models.User.email == email).first()
         if user:
             return user
@@ -53,8 +70,8 @@ def validate_email(email: str, session: Session):
         ErrorHandler.Error(e)
 
 
-def validate_user(email: str, password: str, session: Session):
-    user = session.query(alchemy_models.User).filter(
+def validate_user(email: str, password: str, db: Session):
+    user = db.query(alchemy_models.User).filter(
         alchemy_models.User.email == email).first()
     if user and verify_password(user.password, password):
         return user
@@ -64,17 +81,14 @@ def validate_user(email: str, password: str, session: Session):
 
 
 def LOGIN_USER(
-    user_credentials: OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(database.get_db)):
+    user_credentials: OAuth2PasswordRequestForm,
+    db: Session):
 
     user = validate_user(user_credentials.username, user_credentials.password, db)
 
     if not user:
-        raise ErrorHandler.Unauthorized("Invalid email or password")
+         ErrorHandler.Unauthorized("Invalid email or password")
 
-    access_token_expires = timedelta(
-        minutes=ACCESS_TOKEN_EXPIRE_MINUTES
-    )
 
     access_token = create_access_token(
         data={"sub": user.email} )
@@ -85,7 +99,7 @@ def LOGIN_USER(
     }
 
 
-def LOGOUT(token: str = Depends(oauth2_scheme)):
+def LOGOUT(token: str):
     try:
         if token_blocklist.is_token_blocklisted(token):
             return {"message": "Already logged out"}
@@ -98,7 +112,7 @@ def LOGOUT(token: str = Depends(oauth2_scheme)):
         ErrorHandler.ServerError("Unable to logout user")
 
 
-def FORGOT_PASSWORD(request: schemas.ForgotPassword, db: Session = Depends(database.get_db)):
+def FORGOT_PASSWORD(request: schemas.ForgotPassword, db: Session ):
     email = request.email
     is_user = validate_email(email, db)
     if not is_user:
@@ -115,7 +129,7 @@ def FORGOT_PASSWORD(request: schemas.ForgotPassword, db: Session = Depends(datab
     return reset_token
 
 
-def RESET_PASSWORD(reset_token: str, new_pass: str, db: Session = Depends(database.get_db)):
+def RESET_PASSWORD(reset_token: str, new_pass: str, db: Session ):
     
     try:
         reset_token = db.query(alchemy_models.ResetTokens).filter(
@@ -137,11 +151,15 @@ def RESET_PASSWORD(reset_token: str, new_pass: str, db: Session = Depends(databa
         ErrorHandler.Error(e)
 
 
-def CHANGE_PASSWORD(email: str, new_pass: str, db: Session = Depends(database.get_db)):
-
+def CHANGE_PASSWORD(email: str, new_pass: str, db: Session):
     user_details = db.query(alchemy_models.User).filter(
-        alchemy_models.User.email == email).first()
+        alchemy_models.User.email == email
+    ).first()
+
+    if not user_details:
+        ErrorHandler.NotFound("User not found")
+
     user_details.password = hash_password(new_pass)
-    db.add(user_details)
+
     db.commit()
     db.refresh(user_details)
