@@ -21,7 +21,7 @@ router = APIRouter(
 #login
 
 @router.post("/login", status_code=status.HTTP_200_OK)
-async def login(request: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(database.get_db)):
+def login(request: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(database.get_db)):
 
     user_login = LOGIN_USER(request, db)
     return user_login

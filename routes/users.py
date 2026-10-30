@@ -2,8 +2,8 @@ from fastapi import APIRouter, status, Depends
 from settings import database
 from sqlalchemy.orm import Session
 from typing import List
-from models import schemas
-from utils.jwt import verify_access_token
+from models import schemas , alchemy_models
+from utils.jwt import check_if_admin
 from handlers.userhandler import (
     CREATE_USER,
     GET_ALL_USERS,
@@ -19,7 +19,7 @@ router = APIRouter(
 )
 #create a user in database by signing in
 @router.post("/Signup", status_code=status.HTTP_201_CREATED)
-async def create_user(request: schemas.UserSignup, db: Session = Depends(database.get_db)):
+def create_user(request: schemas.UserSignup, db: Session = Depends(database.get_db)):
     new_user = CREATE_USER(request, db)
     return new_user
 
@@ -28,16 +28,16 @@ async def create_user(request: schemas.UserSignup, db: Session = Depends(databas
     "/getallusers",
     response_model=List[schemas.ShowAllUser],
     status_code=status.HTTP_200_OK,
-    dependencies=[Depends(verify_access_token)]
 )
-async def get_all_users(db: Session = Depends(database.get_db)):
-    user = GET_ALL_USERS(db)
-    return user
-
-
+def get_all_users(
+    db: Session = Depends(database.get_db),
+    current_user:alchemy_models.User=Depends(check_if_admin),
+):
+    
+    return GET_ALL_USERS(db)
 #get user by email
-@router.get("/getuser/{email}", response_model=schemas.ShowParticularUser, status_code=status.HTTP_200_OK,dependencies=[Depends(verify_access_token)])
-async def get_user(email: str, db: Session = Depends(database.get_db)):
+@router.get("/getuser/{email}", response_model=schemas.ShowParticularUser, status_code=status.HTTP_200_OK)
+def get_user(email: str, db: Session = Depends(database.get_db) , current_user=Depends(check_if_admin)):
 
     user_details = GET_USER(email, db)
     return user_details
@@ -45,8 +45,8 @@ async def get_user(email: str, db: Session = Depends(database.get_db)):
 # get user details with user id
 
 
-@router.get("/getuserbyid/{user_id}", response_model=schemas.ShowParticularUser, status_code=status.HTTP_200_OK,dependencies=[Depends(verify_access_token)])
-async def get_user_by_id(user_id: int, db: Session = Depends(database.get_db)):
+@router.get("/getuserbyid/{user_id}", response_model=schemas.ShowParticularUser, status_code=status.HTTP_200_OK)
+def get_user_by_id(user_id: int, db: Session = Depends(database.get_db) ,  current_user=Depends(check_if_admin)):
 
     user_by_id = GET_USER_BY_ID(user_id, db)
     return user_by_id
